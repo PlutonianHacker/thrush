@@ -31,9 +31,23 @@ pub enum TokenKind {
     /// =
     Assign,
 
+    /// (
+    LParen,
+    /// )
+    RParen,
+    /// [
+    LBracket,
+    /// ]
+    RBracket,
+    /// {
+    LBrace,
+    /// }
+    RBrace,
+
     Literal(Lit),
     Ident(Symbol),
 
+    /// <eof>
     Eof,
 }
 

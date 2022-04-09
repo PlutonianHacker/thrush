@@ -10,9 +10,9 @@ use crate::{
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
 pub enum Precedence {
     None = 0,
-    Sum, // +, -
+    Sum,  // +, -
     Term, // *, /, %
-    End, 
+    End,
 }
 
 impl Precedence {
@@ -49,14 +49,9 @@ impl Parser {
         match &self.current.kind {
             TokenKind::Plus | TokenKind::Hypen => Precedence::Sum,
             TokenKind::Star | TokenKind::BackSlash | TokenKind::Modulo => Precedence::Term,
-            TokenKind::Eof => Precedence::End,
+            TokenKind::Eof | TokenKind::RParen => Precedence::End,
             kind => todo!("No rule implemented for {kind:?}"),
         }
-    }
-
-    /// Parse an binary expression.
-    pub fn infix_rule(&mut self, left: Expr) -> Result<Expr, String> {
-        BinOp::parse(self, left)
     }
 
     /// Parse a statement.
@@ -69,7 +64,49 @@ impl Parser {
         let mut left = self.literal()?;
 
         while self.prec() >= prec && self.prec() != Precedence::End {
-            left = self.infix_rule(left)?;
+            left = self.infix_expr(left)?;
+        }
+
+        Ok(left)
+    }
+
+    /// Parse a binary expression.
+    pub fn infix_expr(&mut self, mut left: Expr) -> Result<Expr, String> {
+        match &self.current.kind {
+            TokenKind::Plus => {
+                self.consume();
+
+                left =
+                    Expr::binary_expr(BinOp::Add, left, self.expression(Precedence::Sum.left())?);
+            }
+            TokenKind::Hypen => {
+                self.consume();
+
+                left =
+                    Expr::binary_expr(BinOp::Sub, left, self.expression(Precedence::Sum.left())?);
+            }
+            TokenKind::Star => {
+                self.consume();
+
+                left =
+                    Expr::binary_expr(BinOp::Mul, left, self.expression(Precedence::Term.left())?);
+            }
+            TokenKind::BackSlash => {
+                self.consume();
+
+                left =
+                    Expr::binary_expr(BinOp::Div, left, self.expression(Precedence::Term.left())?);
+            }
+            TokenKind::Modulo => {
+                self.consume();
+
+                left = Expr::binary_expr(
+                    BinOp::Modulo,
+                    left,
+                    self.expression(Precedence::Term.left())?,
+                );
+            }
+            _ => {}
         }
 
         Ok(left)
@@ -109,6 +146,13 @@ impl Parser {
                     value: Box::new(self.expression(Precedence::End)?),
                     op: BinOp::Bang,
                 })
+            }
+            TokenKind::LParen => {
+                self.consume();
+                let node = self.expression(Precedence::None.left())?;
+                self.consume();
+
+                Ok(node)
             }
             _ => Err("unexpected token".into()),
         }

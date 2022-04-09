@@ -133,6 +133,10 @@ impl<'a> Lexer<'a> {
             Some("%") => self.make_token(TokenKind::Modulo),
             Some("!") => self.make_token(TokenKind::Bang),
             Some("~") => self.make_token(TokenKind::Tilde),
+            Some("(") => self.make_token(TokenKind::LParen),
+            Some(")") => self.make_token(TokenKind::RParen),
+            Some("[") => self.make_token(TokenKind::LBracket),
+            Some("]") => self.make_token(TokenKind::RBracket),
             Some(c) => {
                 if is_numeric(c) {
                     self.number()
@@ -174,6 +178,8 @@ mod test {
             ("*", Token::new(TokenKind::Star)),
             ("~", Token::new(TokenKind::Tilde)),
             ("!", Token::new(TokenKind::Bang)),
+            ("(", Token::new(TokenKind::LParen)),
+            (")", Token::new(TokenKind::RParen)),
             (" ", Token::new(TokenKind::Eof)),
         ];
 
