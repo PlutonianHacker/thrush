@@ -35,15 +35,7 @@ mod test {
 
     #[test]
     fn test_fn_hash() {
-        println!("{:?}", Hash::of("Hello"));
-        println!("{:?}", Hash::of("+"));
-        println!("{:?}", Hash::of("hello_world"));
-        println!("{:?}", Hash::of(123));
-
         assert_eq!(Hash::of("name"), Hash::of("name"));
-
-        let hash = Hash::of("pineapple");
-
-        
+        assert_ne!(Hash::of("a"), Hash::of("b"));
     }
 }
