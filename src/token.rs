@@ -1,6 +1,6 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Lit {
-    Integer(u64),
+    Integer(i64),
     String(String),
     Float(f64),
 }

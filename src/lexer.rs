@@ -119,7 +119,7 @@ impl<'a> Lexer<'a> {
 
         let num = &self.reader.next_token();
 
-        Token::new(TokenKind::Literal(Lit::Integer(num.parse::<u64>().unwrap())))
+        Token::new(TokenKind::Literal(Lit::Integer(num.parse::<i64>().unwrap())))
     }
 
     pub fn next_token(&mut self) -> Token {

@@ -6,10 +6,12 @@ fn main() {
     let scope = thrush.globals();
 
     scope.add("x", 34);
-    scope.add("y", "Hello");
+    scope.add("y", "Hello".to_string());
+    scope.add("z", true);
 
-    assert_eq!(scope.get::<f32>("x"), 34.0);
-    assert_eq!(scope.get::<String>("y"), "Hello");
+    assert_eq!(scope.get::<i32>("x"), Ok(34));
+    assert_eq!(scope.get::<String>("y"), Ok("Hello".to_string()));
+    assert_eq!(scope.get::<bool>("z"), Ok(true));
 
     println!("{thrush:#?}");
 }

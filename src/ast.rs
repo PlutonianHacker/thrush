@@ -39,7 +39,7 @@ pub enum Lit {
     /// A string literal
     String(String),
     /// An integer literal
-    Integer(u64),
+    Integer(i64),
     /// A float literal
     Float(f64),
     /// A character literal
@@ -60,7 +60,7 @@ pub enum BinOp {
     /// /
     Div,
     /// %
-    Modulo,
+    Rem,
     /// !
     Bang,
 }
@@ -68,9 +68,20 @@ pub enum BinOp {
 impl BinOp {
     pub fn precedence(&self) -> usize {
         match &self {
-            BinOp::Mul | BinOp::Div | BinOp::Modulo => 3,
+            BinOp::Mul | BinOp::Div | BinOp::Rem => 3,
             BinOp::Sub | BinOp::Add => 2,
             BinOp::Bang => 1,
+        }
+    }
+
+    pub fn into_string(&self) -> &str {
+        match self {
+            BinOp::Add => "+",
+            BinOp::Sub => "-",
+            BinOp::Mul => "*",
+            BinOp::Div => "/",
+            BinOp::Rem => "%",
+            BinOp::Bang => "!",
         }
     }
 }

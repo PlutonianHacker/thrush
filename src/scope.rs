@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use crate::value::Value;
+use crate::value::{FromValue, Value};
 
 #[derive(Debug)]
 pub struct Scope {
-    globals: HashMap<String, Value>
+    globals: HashMap<String, Value>,
 }
 
 impl Scope {
@@ -17,8 +17,12 @@ impl Scope {
     pub fn add<T: Into<Value>>(&mut self, name: &str, value: T) {
         self.globals.insert(name.into(), value.into());
     }
-    
-    pub fn get<T: From<Value>>(&self, name: &str) -> T {
-        T::from(self.globals.get(name.into()).expect("cannot find name in scope").clone())
-    } 
+
+    pub fn get<T: FromValue>(&self, name: &str) -> Result<T, String> {
+        let value = self.globals.get(name.into()).expect("cannot find name in this scope.");
+        //.ok_or("cannot find name in scope".into())
+        //.map(|v| T::from_value(v)?)
+
+        Ok(T::from_value(value)?)
+    }
 }

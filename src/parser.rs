@@ -101,7 +101,7 @@ impl Parser {
                 self.consume();
 
                 left = Expr::binary_expr(
-                    BinOp::Modulo,
+                    BinOp::Rem,
                     left,
                     self.expression(Precedence::Term.left())?,
                 );
