@@ -20,8 +20,6 @@ impl Scope {
 
     pub fn get<T: FromValue>(&self, name: &str) -> Result<T, String> {
         let value = self.globals.get(name.into()).expect("cannot find name in this scope.");
-        //.ok_or("cannot find name in scope".into())
-        //.map(|v| T::from_value(v)?)
 
         Ok(T::from_value(value)?)
     }

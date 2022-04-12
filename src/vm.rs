@@ -1,20 +1,23 @@
-use std::rc::Rc;
+use std::{rc::Rc, collections::HashMap};
 
 use crate::{
     chunk::Chunk,
     instruction::{InstanceValue, Instruction},
-    value::Value,
+    value::Value
 };
 
 /// The VM's stack.
 #[derive(Debug)]
 pub struct Stack {
     stack: Vec<Value>,
+    _prelude: HashMap<Box<str>, Value>,
 }
 
 impl Stack {
     pub fn new() -> Self {
-        Stack { stack: Vec::new() }
+        let mut _prelude = HashMap::new();
+
+        Stack { stack: Vec::new(), _prelude }
     }
 
     /// Pop a value off the stack and return it.
