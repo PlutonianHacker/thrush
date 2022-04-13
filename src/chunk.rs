@@ -1,4 +1,4 @@
-use crate::instruction::Instruction;
+use crate::{instruction::Instruction, value::{Callable}};
 
 #[derive(Debug)]
 pub struct Chunk {
@@ -11,4 +11,8 @@ impl Chunk {
             instructions: Vec::default(),
         }
     }
+}
+
+pub struct Module {
+    pub functions: Vec<Box<dyn Callable>>,
 }

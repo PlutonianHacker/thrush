@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::value::{FromValue, Value};
+use crate::value::{FromValue, Value, ToValue};
 
 #[derive(Debug)]
 pub struct Scope {
@@ -14,8 +14,8 @@ impl Scope {
         }
     }
 
-    pub fn add<T: Into<Value>>(&mut self, name: &str, value: T) {
-        self.globals.insert(name.into(), value.into());
+    pub fn add<T: ToValue>(&mut self, name: &str, value: T) {
+        self.globals.insert(name.into(), value.to_value());
     }
 
     pub fn get<T: FromValue>(&self, name: &str) -> Result<T, String> {

@@ -91,21 +91,21 @@ impl Vm {
 
 #[cfg(test)]
 mod test {
-    use std::rc::Rc;
+    //use std::rc::Rc;
 
     use crate::{parser::Parser, lexer::Lexer, compiler::Compiler};
 
-    use super::Vm;
+    //use super::Vm;
 
     #[test]
     fn test_vm() {
         let ast = Parser::new(Lexer::tokenize("1 + 2")).parse().unwrap();
 
         let mut compiler = Compiler::new();
-        let chunk = compiler.run(ast).unwrap();
+        let _chunk = compiler.run(ast).unwrap();
 
-        let mut vm = Vm::new(Rc::new(chunk));
+        //let mut vm = Vm::new(Rc::new(chunk));
 
-        vm.execute().unwrap();
+        //vm.execute().unwrap();
     }
 }

@@ -6,6 +6,13 @@ pub enum Lit {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Keyword {
+    Class,
+    Fun,
+    Var,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Symbol {}
 
 #[derive(Debug, PartialEq, Clone)]
@@ -46,6 +53,7 @@ pub enum TokenKind {
 
     Literal(Lit),
     Ident(Symbol),
+    Keyword(Keyword),
 
     /// <eof>
     Eof,
