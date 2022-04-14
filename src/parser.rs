@@ -1,8 +1,8 @@
 use std::mem;
 
 use crate::{
-    ast::{Ast, AstNode, BinOp, Expr, Lit},
-    token::{self, Token, TokenKind},
+    ast::{Ast, BinOp, Expr, Lit, Stmt},
+    token::{self, Keyword, Token, TokenKind},
 };
 
 /// Defines the precedence of different operators and expressions.
@@ -12,6 +12,7 @@ pub enum Precedence {
     None = 0,
     Sum,  // +, -
     Term, // *, /, %
+    Call,
     End,
 }
 
@@ -37,6 +38,8 @@ impl Parser {
         }
     }
 
+    // TODO: add error handling.
+    /// Consume the current token, and get the next one from the token stream.
     pub fn consume(&mut self) {
         if self.pos + 1 <= self.tokens.len() - 1 {
             self.pos += 1;
@@ -49,14 +52,52 @@ impl Parser {
         match &self.current.kind {
             TokenKind::Plus | TokenKind::Hypen => Precedence::Sum,
             TokenKind::Star | TokenKind::BackSlash | TokenKind::Modulo => Precedence::Term,
+            TokenKind::LParen => Precedence::Call,
             TokenKind::Eof | TokenKind::RParen => Precedence::End,
             kind => todo!("No rule implemented for {kind:?}"),
         }
     }
 
     /// Parse a statement.
-    pub fn statement(&mut self) -> Result<AstNode, String> {
-        Ok(AstNode::Expr(self.expression(Precedence::None)?))
+    fn statement(&mut self) -> Result<Stmt, String> {
+        match &self.current.kind {
+            TokenKind::Keyword(keyword) => match keyword {
+                Keyword::Class => self.class(),
+                _ => todo!(),
+            },
+            _ => self.expr(),
+        }
+    }
+
+    /// Parse a class declaration.
+    fn class(&mut self) -> Result<Stmt, String> {
+        self.consume();
+
+        let name = self.identifier()?;
+
+        let class = Stmt::Class { name };
+
+        // {
+        self.consume();
+        // }
+        self.consume();
+
+        Ok(class)
+    }
+
+    /// Parse a expression and a newline.
+    pub fn expr(&mut self) -> Result<Stmt, String> {
+        let expr = self.expression(Precedence::None)?;
+
+        match &self.current.kind {
+            TokenKind::Newline => {
+                self.consume();
+
+                Ok(Stmt::Expr(expr))
+            }
+            TokenKind::Eof | TokenKind::RBrace => Ok(Stmt::Expr(expr)),
+            _ => panic!("Unexpected token"),
+        }
     }
 
     /// Parse an expression.
@@ -100,11 +141,18 @@ impl Parser {
             TokenKind::Modulo => {
                 self.consume();
 
-                left = Expr::binary_expr(
-                    BinOp::Rem,
-                    left,
-                    self.expression(Precedence::Term.left())?,
-                );
+                left =
+                    Expr::binary_expr(BinOp::Rem, left, self.expression(Precedence::Term.left())?);
+            }
+            TokenKind::LParen => {
+                self.consume();
+
+                left = Expr::Call {
+                    callee: Box::new(left),
+                    args: Vec::new(),
+                };
+
+                self.consume();
             }
             _ => {}
         }
@@ -154,6 +202,7 @@ impl Parser {
 
                 Ok(node)
             }
+            TokenKind::Ident(_) => Ok(Expr::Identifier(self.identifier()?)),
             _ => Err("unexpected token".into()),
         }
     }
@@ -169,12 +218,29 @@ impl Parser {
 
         Ok(Ast { nodes })
     }
+
+    pub fn parse_ast(tokens: Vec<Token>) -> Result<Ast, String> {
+        let mut parser = Parser::new(tokens);
+
+        parser.parse()
+    }
+
+    fn identifier(&mut self) -> Result<String, String> {
+        if let TokenKind::Ident(name) = &self.current.kind {
+            let name = name.to_string();
+            self.consume();
+
+            Ok(name)
+        } else {
+            Err("expected a identifier".into())
+        }
+    }
 }
 
 #[cfg(test)]
 pub mod test {
     use crate::{
-        ast::{AstNode, BinOp, Expr, Lit},
+        ast::{BinOp, Expr, Lit, Stmt},
         lexer::Lexer,
     };
 
@@ -186,7 +252,7 @@ pub mod test {
 
         assert_eq!(
             parser.parse().unwrap().nodes[0],
-            AstNode::Expr(Expr::BinExpr {
+            Stmt::Expr(Expr::BinExpr {
                 left: Box::new(Expr::Literal(Lit::Integer(4))),
                 right: Box::new(Expr::BinExpr {
                     left: Box::new(Expr::Literal(Lit::Integer(2))),

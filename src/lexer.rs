@@ -1,4 +1,4 @@
-use crate::token::{Lit, Token, TokenKind};
+use crate::token::{Lit, Token, TokenKind, Keyword};
 
 /// Helper struct for reading a string.
 pub struct StringReader<'a> {
@@ -122,6 +122,22 @@ impl<'a> Lexer<'a> {
         Token::new(TokenKind::Literal(Lit::Integer(num.parse::<i64>().unwrap())))
     }
 
+    fn identifier(&mut self) -> Token {
+        while self.reader.peek().is_some() && is_alphanumeric(self.reader.peek().unwrap()) {
+            self.reader.advance();
+        }
+
+        let identifier = self.reader.next_token();
+
+        match identifier {
+            "class" => Token::new(TokenKind::Keyword(Keyword::Class)),
+            "var" => Token::new(TokenKind::Keyword(Keyword::Var)),
+            "fun" => Token::new(TokenKind::Keyword(Keyword::Fun)),
+            "self" => Token::new(TokenKind::Keyword(Keyword::Slf)),
+            ident => Token::new(TokenKind::Ident(ident.into())),
+        }
+    }
+
     pub fn next_token(&mut self) -> Token {
         let c = &self.reader.advance();
 
@@ -137,9 +153,13 @@ impl<'a> Lexer<'a> {
             Some(")") => self.make_token(TokenKind::RParen),
             Some("[") => self.make_token(TokenKind::LBracket),
             Some("]") => self.make_token(TokenKind::RBracket),
+            Some("{") => self.make_token(TokenKind::LBrace),
+            Some("}") => self.make_token(TokenKind::RBrace),
             Some(c) => {
                 if is_numeric(c) {
                     self.number()
+                } else if is_alphabetic(c) {
+                    self.identifier()
                 } else if is_whitespace(c) {
                     self.skip_whitespace();
 
@@ -151,6 +171,14 @@ impl<'a> Lexer<'a> {
             None => Token::new(TokenKind::Eof),
         }
     }
+}
+
+fn is_alphabetic(c: &str) -> bool {
+    c.bytes().all(|c| c.is_ascii_alphabetic())
+}
+
+fn is_alphanumeric(c: &str) -> bool {
+    c.bytes().all(|c| c.is_ascii_alphanumeric())
 }
 
 fn is_numeric(c: &str) -> bool {

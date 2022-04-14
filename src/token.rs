@@ -10,6 +10,7 @@ pub enum Keyword {
     Class,
     Fun,
     Var,
+    Slf,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -52,8 +53,11 @@ pub enum TokenKind {
     RBrace,
 
     Literal(Lit),
-    Ident(Symbol),
+    Ident(Box<str>),
     Keyword(Keyword),
+
+    /// /n
+    Newline,
 
     /// <eof>
     Eof,

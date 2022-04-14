@@ -1,4 +1,4 @@
-use crate::{value::Value, hash::Hash};
+use crate::{hash::Hash, value::Value};
 
 /// An instruction in a stack-based virtual machine.
 ///
@@ -7,12 +7,24 @@ use crate::{value::Value, hash::Hash};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Instruction {
     /// Push a value onto the stack.
-    Push { value: InstanceValue },
+    Push {
+        value: InstanceValue,
+    },
     /// Pop a value off the stack.
     Pop,
     CallInstance {
         hash: Hash,
         args: usize,
+    },
+    /// Call the value on top of the stack.
+    Call,
+    /// Access a property from the instance on top of the stack.
+    GetProperty {
+        name: Hash,
+    },
+    /// Load a global onto the stack.
+    GetGlobal {
+        index: usize,
     },
     /// Halt the current VM.
     Halt,

@@ -1,21 +1,25 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
-use crate::value::{FromValue, Value, ToValue};
+use crate::value::{FromValue, Value, ToValue, Class};
 
 #[derive(Debug)]
-pub struct Scope {
+pub struct State {
     globals: HashMap<String, Value>,
 }
 
-impl Scope {
+impl State {
     pub fn new() -> Self {
-        Scope {
+        State {
             globals: HashMap::new(),
         }
     }
 
     pub fn add<T: ToValue>(&mut self, name: &str, value: T) {
         self.globals.insert(name.into(), value.to_value());
+    }
+
+    pub fn add_class<S: Into<String> + Copy>(&mut self, name: S) {
+        self.globals.insert(name.into(), Value::Class(Rc::new(Class::new(name.into()))));
     }
 
     pub fn get<T: FromValue>(&self, name: &str) -> Result<T, String> {

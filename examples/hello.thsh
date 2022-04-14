@@ -1,0 +1,19 @@
+class Pie {
+    // a field
+    var filling
+
+    // a constructor
+    class new(filling) {
+        self.filling = filling
+    }
+
+    // a method
+    fun bake(time) {
+        print("baking a " + self.filling + " pie for " + time + " minutes.")
+    }
+}
+
+// create a new instance of Pie
+var pie = Pie("apple")
+
+pie.bake(15)

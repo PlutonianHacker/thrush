@@ -1,23 +1,22 @@
-use std::{rc::Rc, collections::HashMap};
+use std::rc::Rc;
 
 use crate::{
     chunk::Chunk,
+    hash::Hash,
     instruction::{InstanceValue, Instruction},
-    value::Value
+    scope::State,
+    value::{Value, Class},
 };
 
 /// The VM's stack.
 #[derive(Debug)]
 pub struct Stack {
     stack: Vec<Value>,
-    _prelude: HashMap<Box<str>, Value>,
 }
 
 impl Stack {
     pub fn new() -> Self {
-        let mut _prelude = HashMap::new();
-
-        Stack { stack: Vec::new(), _prelude }
+        Stack { stack: Vec::new() }
     }
 
     /// Pop a value off the stack and return it.
@@ -31,29 +30,47 @@ impl Stack {
     pub fn push(&mut self, value: Value) {
         self.stack.push(value);
     }
+
+    /// Reset the stack.
+    pub fn clear(&mut self) {
+        self.stack.clear();
+    }
 }
 
 #[derive(Debug)]
 pub struct VmError(pub String);
 
 /// The Thrush stack-based virtual machine.
+#[derive(Debug)]
 pub struct Vm {
     /// The operand stack.
     stack: Stack,
+    /// Track the VM's global state.
+    pub state: State,
+    /// A chunk of bytecode.
     chunk: Rc<Chunk>,
+    /// index pointer
     ip: usize,
 }
 
 impl Vm {
-    pub fn new(chunk: Rc<Chunk>) -> Self {
+    pub fn new() -> Self {
         Vm {
+            state: State::new(),
             stack: Stack::new(),
-            chunk,
+            chunk: Rc::new(Chunk::new()),
             ip: 0,
         }
     }
 
-    pub fn execute(&mut self) -> Result<(), VmError> {
+    /// Reset the VM's internal state.
+    pub fn reset(&mut self) {
+        self.stack.clear();
+        self.ip = 0;
+    }
+
+    pub fn execute(&mut self, chunk: Rc<Chunk>) -> Result<(), VmError> {
+        self.chunk = chunk;
         self.run()
     }
 
@@ -67,6 +84,25 @@ impl Vm {
         self.stack.push(value.into_value());
     }
 
+    fn op_get_prop(&mut self, _name: Hash) -> Result<(), VmError> {
+        let _instance = self.stack.pop()?;
+
+        Ok(())
+    }
+
+    fn op_call(&mut self) -> Result<(), VmError> {
+        match self.stack.pop()? {
+            Value::Class(class) => {
+                let instance = Class::instance(class);
+
+                self.stack.push(Value::Instance(instance));
+
+                Ok(())
+            }
+            value => Err(VmError(format!("'{value}' is not callable")))
+        }
+    }
+
     pub fn run(&mut self) -> Result<(), VmError> {
         loop {
             let inst = *self.get_next_inst();
@@ -78,8 +114,17 @@ impl Vm {
                 Instruction::Pop => {
                     self.stack.pop()?;
                 }
-                Instruction::CallInstance { .. } => {
+                Instruction::CallInstance { .. } => {}
+                Instruction::Call => self.op_call()?,
+                Instruction::GetProperty { name } => self.op_get_prop(name)?,
+                Instruction::GetGlobal { index } => {
+                    let name = &*self.chunk.variables[index];
 
+                    let value = self.state.get::<Value>(name).map_err(|e| VmError(e))?;
+
+                    println!("{value}"); 
+
+                    self.stack.push(value);
                 }
                 Instruction::Halt => break,
             };
@@ -93,15 +138,16 @@ impl Vm {
 mod test {
     //use std::rc::Rc;
 
-    use crate::{parser::Parser, lexer::Lexer, compiler::Compiler};
+    use crate::{compiler::Compiler, lexer::Lexer, parser::Parser, scope::State};
 
     //use super::Vm;
 
     #[test]
     fn test_vm() {
         let ast = Parser::new(Lexer::tokenize("1 + 2")).parse().unwrap();
+        let mut scope = State::new();
 
-        let mut compiler = Compiler::new();
+        let mut compiler = Compiler::new(&mut scope);
         let _chunk = compiler.run(ast).unwrap();
 
         //let mut vm = Vm::new(Rc::new(chunk));

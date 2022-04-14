@@ -1,17 +1,29 @@
 /// An AST (abstract syntax tree).
 #[derive(Debug)]
 pub struct Ast {
-    pub nodes: Vec<AstNode>,
+    pub nodes: Vec<Stmt>,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum AstNode {
+    /// A statement.
+    Stmt(Stmt),
     /// An expression
     Expr(Expr),
 }
 
 #[derive(Debug, PartialEq)]
+pub enum Stmt {
+    Class {
+        name: String,
+    },
+    Expr(Expr),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Expr {
+    /// An identifier
+    Identifier(String),
     /// A literal
     Literal(Lit),
     /// A binary expression
@@ -22,6 +34,7 @@ pub enum Expr {
     },
     /// An unary expression
     UnaryExpr { value: Box<Expr>, op: BinOp },
+    Call { callee: Box<Expr>, args: Vec<Expr> }
 }
 
 impl Expr {
