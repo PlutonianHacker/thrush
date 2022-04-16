@@ -1,21 +1,15 @@
-use crate::{instruction::Instruction, value::{Callable}};
+use crate::{instruction::Instruction, value::Callable};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Chunk {
     pub instructions: Vec<Instruction>,
     pub variables: Vec<Box<str>>,
 }
 
-impl Default for Chunk {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Chunk {
     pub fn new() -> Self {
         Self {
-            instructions: Vec::default(),
+            instructions: Vec::new(),
             variables: Vec::new(),
         }
     }

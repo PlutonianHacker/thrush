@@ -81,14 +81,6 @@ pub enum BinOp {
 }
 
 impl BinOp {
-    pub fn precedence(&self) -> usize {
-        match &self {
-            BinOp::Mul | BinOp::Div | BinOp::Rem => 3,
-            BinOp::Sub | BinOp::Add => 2,
-            BinOp::Bang => 1,
-        }
-    }
-
     pub fn into_string(&self) -> &str {
         match self {
             BinOp::Add => "+",

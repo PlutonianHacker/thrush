@@ -1,5 +1,10 @@
 use core::fmt;
-use std::{cell::RefCell, collections::HashMap, fmt::Debug, rc::Rc};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
+    fmt::Debug,
+    rc::Rc,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
@@ -7,7 +12,7 @@ pub enum Value {
     Float(f64),
     Integer(i64),
     String(String),
-    Instance(Rc<RefCell<Instance>>),
+    Instance(Rc<Instance>),
     Class(Rc<Class>),
     Method(Rc<BoundMethod>),
     Nil,
@@ -20,16 +25,14 @@ impl fmt::Display for Value {
             Value::Float(v) => f.write_fmt(format_args!("{v}")),
             Value::Integer(v) => f.write_fmt(format_args!("{v}")),
             Value::String(v) => f.write_fmt(format_args!("{v}")),
-            Value::Nil => f.write_str("nil"),
-            Value::Instance(instance) => {
-                f.write_fmt(format_args!("{}", instance.as_ref().borrow()))
-            }
+            Value::Instance(instance) => f.write_fmt(format_args!("{instance}")),
             Value::Class(class) => f.write_fmt(format_args!("<Class {}>", class.as_ref().name)),
             Value::Method(method) => f.write_fmt(format_args!(
                 "<method {}.{}>",
-                method.receiver.as_ref().borrow().class.as_ref().name,
+                method.receiver.as_ref().class.as_ref().name,
                 method.function.name
             )),
+            Value::Nil => f.write_str("nil"),
         }
     }
 }
@@ -43,22 +46,22 @@ pub struct Class {
 impl Class {
     pub fn new<S: Into<Box<str>>>(name: S) -> Rc<Self> {
         Rc::new(Self {
-                    name: name.into(),
-                    methods: RefCell::new(HashMap::new()),
-                })
+            name: name.into(),
+            methods: RefCell::new(HashMap::new()),
+        })
     }
 
     pub fn add_method<S: Into<Box<str>> + Copy>(
         &self,
         name: S,
-        fun: fn(Rc<RefCell<Instance>>, Vec<Value>) -> Value,
+        fun: fn(Rc<Instance>, Vec<Value>) -> Value,
     ) {
         self.methods
             .borrow_mut()
             .insert(name.into(), Rc::new(InstanceFun::new(name.into(), fun)));
     }
 
-    pub fn instance(self: Rc<Self>) -> Rc<RefCell<Instance>> {
+    pub fn instance(self: Rc<Self>) -> Rc<Instance> {
         Instance::new(self)
     }
 }
@@ -99,42 +102,40 @@ impl Callable for Function {
 #[derive(Debug, PartialEq)]
 pub struct Instance {
     pub class: Rc<Class>,
-    pub fields: Vec<Value>,
+    pub fields: RefCell<Vec<Value>>,
 }
 
 impl Instance {
-    pub fn new(class: Rc<Class>) -> Rc<RefCell<Self>> {
-        Rc::new(
-            Self {
-                class,
-                fields: Vec::new(),
-            }
-            .into(),
-        )
+    pub fn new(class: Rc<Class>) -> Rc<Self> {
+        Rc::new(Self {
+            class,
+            fields: RefCell::new(Vec::new()),
+        })
     }
 
     /// Bind a method with the given name and call it immediately.
-    pub fn invoke<S: Into<Box<str>>, V: Into<Value>>(
-        receiver: Rc<RefCell<Instance>>,
-        name: S,
-    ) -> Value {
+    pub fn invoke<S: Into<Box<str>>>(receiver: Rc<Self>, name: S) -> Value {
         let bound = Instance::bind(receiver, name);
-        
+
         bound.call(vec![])
     }
 
     /// Bind a method to an instance.
-    pub fn bind<S: Into<Box<str>>>(receiver: Rc<RefCell<Instance>>, name: S) -> BoundMethod {
-        let instance = receiver.as_ref().borrow();
-        let class = instance.class.as_ref().methods.borrow();
-        let method = class.get(&name.into()).unwrap();
+    pub fn bind<S: Into<Box<str>>>(receiver: Rc<Self>, name: S) -> BoundMethod {
+        let instance = receiver.as_ref().class.as_ref().methods.borrow();
+        let method = instance.get(&name.into()).unwrap();
 
         BoundMethod::new(receiver.clone(), method.clone())
     }
 
     /// Get a mutable reference to the instance's fields.
-    pub fn fields_mut(&mut self) -> &mut Vec<Value> {
-        &mut self.fields
+    pub fn fields_mut(&self) -> RefMut<'_, Vec<Value>> {
+        self.fields.borrow_mut()
+    }
+
+    /// Get a reference to the instance's fields.
+    pub fn fields(&self) -> Ref<'_, Vec<Value>> {
+        self.fields.borrow()
     }
 }
 
@@ -147,14 +148,11 @@ impl fmt::Display for Instance {
 #[derive(Debug)]
 pub struct InstanceFun {
     pub name: Box<str>,
-    pub fun: fn(Rc<RefCell<Instance>>, Vec<Value>) -> Value,
+    pub fun: fn(Rc<Instance>, Vec<Value>) -> Value,
 }
 
 impl InstanceFun {
-    pub fn new<S: Into<Box<str>>>(
-        name: S,
-        fun: fn(Rc<RefCell<Instance>>, Vec<Value>) -> Value,
-    ) -> Self {
+    pub fn new<S: Into<Box<str>>>(name: S, fun: fn(Rc<Instance>, Vec<Value>) -> Value) -> Self {
         Self {
             name: name.into(),
             fun,
@@ -170,12 +168,12 @@ impl PartialEq for InstanceFun {
 
 #[derive(Debug, PartialEq)]
 pub struct BoundMethod {
-    pub receiver: Rc<RefCell<Instance>>,
+    pub receiver: Rc<Instance>,
     pub function: Rc<InstanceFun>,
 }
 
 impl<'a, 'b> BoundMethod {
-    pub fn new(receiver: Rc<RefCell<Instance>>, function: Rc<InstanceFun>) -> Self {
+    pub fn new(receiver: Rc<Instance>, function: Rc<InstanceFun>) -> Self {
         Self { receiver, function }
     }
 }
@@ -237,7 +235,7 @@ impl_into_value!(f32, Float, f64);
 impl_into_value!(bool, Bool);
 
 impl From<()> for Value {
-    fn from(_: ())-> Value {
+    fn from(_: ()) -> Value {
         Value::Nil
     }
 }
@@ -281,12 +279,12 @@ pub mod test {
         let receiver = class.instance();
 
         let fun1 = InstanceFun::new("x", |this, _| {
-            this.as_ref().borrow_mut().fields.push(Value::Integer(10));
+            this.fields_mut().push(Value::Integer(10));
             Value::Nil
         });
 
         let fun2 = InstanceFun::new("y", |this, _| {
-            if let Value::Integer(v) = &mut this.as_ref().borrow_mut().fields[0] {
+            if let Value::Integer(v) = &mut this.fields_mut()[0] {
                 *v += 1;
             }
             Value::Nil
@@ -301,7 +299,7 @@ pub mod test {
             BoundMethod::call(&mut method2, vec![]);
         }
 
-        assert_eq!(&receiver.as_ref().borrow().fields[0], &Value::Integer(20));
+        assert_eq!(&receiver.fields_mut()[0], &Value::Integer(20));
     }
 
     #[test]
@@ -310,14 +308,13 @@ pub mod test {
         let receiver = class.instance();
 
         let constructor = InstanceFun::new("constructor", |this, _| {
-            this.as_ref().borrow_mut().fields.push(Value::Integer(1));
+            this.fields_mut().push(Value::Integer(1));
             Value::Nil
         });
 
         let add = InstanceFun::new("add", |this, args| {
-            (i32::from_value(&this.as_ref().borrow_mut().fields[0]).unwrap()
-                + i32::from_value(&args[0]).unwrap())
-            .to_value()
+            (i32::from_value(&this.fields()[0]).unwrap() + i32::from_value(&args[0]).unwrap())
+                .to_value()
         });
 
         let mut constructor = BoundMethod::new(receiver.clone(), Rc::new(constructor));
@@ -338,7 +335,7 @@ pub mod test {
         class.add_method("to_string", |_, _| Value::String("__io__".into()));
 
         class.add_method("print", |this, args| {
-            let name = Instance::invoke::<&str, ()>(this, "to_string");
+            let name = Instance::invoke(this, "to_string");
 
             println!("{name}");
             println!("{}", args[0]);
