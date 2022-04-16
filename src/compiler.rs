@@ -1,7 +1,6 @@
 use crate::{
     ast::{Ast, BinOp, Expr, Lit, Stmt},
     chunk::Chunk,
-    hash::Hash,
     instruction::Instruction,
     scope::State,
 };
@@ -69,25 +68,26 @@ impl<'a> Compiler<'a> {
 
     fn expr(&mut self, expr: &Expr) {
         match expr {
+            Expr::Dot { object, property } => self.dot_expr(object, property),
             Expr::Literal(lit) => self.literal(lit),
             Expr::BinExpr { op, left, right } => self.binary_expr(op, left, right),
-            Expr::UnaryExpr { .. } => todo!(),
             Expr::Identifier(ident) => self.identifier(ident),
             Expr::Call { callee, .. } => self.call(callee),
+            Expr::UnaryExpr { .. } => todo!(),
         }
     }
 
-    fn binary_expr(&mut self, op: &BinOp, left: &Expr, right: &Expr) {
+    fn binary_expr(&mut self, _op: &BinOp, left: &Expr, right: &Expr) {
         // PUSH 2
         self.expr(left);
         // PUSH 1
         self.expr(right);
 
         // add
-        let hash = Hash::of(op.into_string());
+        //let hash = Hash::of(op.into_string());
 
         // GET_PROP
-        self.emit_inst(Instruction::GetProperty { name: hash });
+        //self.emit_inst(Instruction::GetProperty { name: hash });
 
         // CALL
         self.emit_inst(Instruction::Call);
@@ -99,6 +99,15 @@ impl<'a> Compiler<'a> {
         // OP_CALL
         //
         //self.emit_inst(Instruction::CallInstance { hash, args: 2 });
+    }
+
+    fn dot_expr(&mut self, object: &Expr, property: &Expr) {
+        self.expr(object);
+
+        if let Expr::Identifier(name) = property {
+            let index = self.chunk.add_variable(name.to_string());
+            self.emit_inst(Instruction::GetProperty { index });
+        }
     }
 
     fn call(&mut self, expr: &Expr) {

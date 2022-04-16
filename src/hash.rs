@@ -5,7 +5,7 @@ use std::{
 };
 
 // implement custom hasher?
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, hash::Hash)]
 pub struct Hash(u64);
 
 impl Hash {
@@ -14,12 +14,6 @@ impl Hash {
         value.hash(&mut hasher);
 
         Self(hasher.finish())
-    }
-}
-
-impl hash::Hash for Hash {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
     }
 }
 

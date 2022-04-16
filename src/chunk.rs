@@ -6,6 +6,12 @@ pub struct Chunk {
     pub variables: Vec<Box<str>>,
 }
 
+impl Default for Chunk {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Chunk {
     pub fn new() -> Self {
         Self {

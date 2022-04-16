@@ -41,7 +41,7 @@ impl Parser {
     // TODO: add error handling.
     /// Consume the current token, and get the next one from the token stream.
     pub fn consume(&mut self) {
-        if self.pos + 1 <= self.tokens.len() - 1 {
+        if self.pos <= self.tokens.len() {
             self.pos += 1;
             self.current = self.tokens[self.pos].clone();
         }
@@ -52,7 +52,7 @@ impl Parser {
         match &self.current.kind {
             TokenKind::Plus | TokenKind::Hypen => Precedence::Sum,
             TokenKind::Star | TokenKind::BackSlash | TokenKind::Modulo => Precedence::Term,
-            TokenKind::LParen => Precedence::Call,
+            TokenKind::Dot | TokenKind::LParen => Precedence::Call,
             TokenKind::Eof | TokenKind::RParen => Precedence::End,
             kind => todo!("No rule implemented for {kind:?}"),
         }
@@ -153,6 +153,14 @@ impl Parser {
                 };
 
                 self.consume();
+            }
+            TokenKind::Dot => {
+                self.consume();
+
+                left = Expr::Dot {
+                    object: Box::new(left),
+                    property: Box::new(self.literal()?),
+                };
             }
             _ => {}
         }

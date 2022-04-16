@@ -9,6 +9,7 @@ pub enum Value {
     String(String),
     Instance(Rc<RefCell<Instance>>),
     Class(Rc<Class>),
+    Method(Rc<BoundMethod>),
     Nil,
 }
 
@@ -23,30 +24,37 @@ impl fmt::Display for Value {
             Value::Instance(instance) => {
                 f.write_fmt(format_args!("{}", instance.as_ref().borrow()))
             }
-            Value::Class(class) => f.write_fmt(format_args!("<Class {}>", class.name)),
+            Value::Class(class) => f.write_fmt(format_args!("<Class {}>", class.as_ref().name)),
+            Value::Method(method) => f.write_fmt(format_args!(
+                "<method {}.{}>",
+                method.receiver.as_ref().borrow().class.as_ref().name,
+                method.function.name
+            )),
         }
     }
 }
 
+/// Representation of a Thrush class in rust.
 pub struct Class {
     pub name: Box<str>,
-    pub methods: HashMap<Box<str>, Rc<InstanceFun>>,
+    pub methods: RefCell<HashMap<Box<str>, Rc<InstanceFun>>>,
 }
 
 impl Class {
-    pub fn new<S: Into<Box<str>>>(name: S) -> Self {
-        Self {
-            name: name.into(),
-            methods: HashMap::new(),
-        }
+    pub fn new<S: Into<Box<str>>>(name: S) -> Rc<Self> {
+        Rc::new(Self {
+                    name: name.into(),
+                    methods: RefCell::new(HashMap::new()),
+                })
     }
 
     pub fn add_method<S: Into<Box<str>> + Copy>(
-        &mut self,
+        &self,
         name: S,
         fun: fn(Rc<RefCell<Instance>>, Vec<Value>) -> Value,
     ) {
         self.methods
+            .borrow_mut()
             .insert(name.into(), Rc::new(InstanceFun::new(name.into(), fun)));
     }
 
@@ -67,12 +75,6 @@ impl PartialEq for Class {
     }
 }
 
-/*impl Callable for Class {
-    fn call(self: &mut Self, args: Vec<Value>) -> Value {
-        Value::Instance(Instance::new(self))
-    }
-}*/
-
 pub struct Function {
     pub name: Box<str>,
     pub inner: fn(Vec<Value>) -> Value,
@@ -88,11 +90,12 @@ impl Function {
 }
 
 impl Callable for Function {
-    fn call(self: &mut Self, args: Vec<Value>) -> Value {
+    fn call(&self, args: Vec<Value>) -> Value {
         (self.inner)(args)
     }
 }
 
+/// An instance of a [Class].
 #[derive(Debug, PartialEq)]
 pub struct Instance {
     pub class: Rc<Class>,
@@ -110,29 +113,38 @@ impl Instance {
         )
     }
 
+    /// Bind a method with the given name and call it immediately.
     pub fn invoke<S: Into<Box<str>>, V: Into<Value>>(
         receiver: Rc<RefCell<Instance>>,
         name: S,
     ) -> Value {
-        let mut bound = Instance::bind(receiver, name);
-
-        BoundMethod::call(&mut bound, vec![])
+        let bound = Instance::bind(receiver, name);
+        
+        bound.call(vec![])
     }
 
+    /// Bind a method to an instance.
     pub fn bind<S: Into<Box<str>>>(receiver: Rc<RefCell<Instance>>, name: S) -> BoundMethod {
         let instance = receiver.as_ref().borrow();
-        let method = instance.class.methods.get(&name.into()).unwrap();
+        let class = instance.class.as_ref().methods.borrow();
+        let method = class.get(&name.into()).unwrap();
 
         BoundMethod::new(receiver.clone(), method.clone())
+    }
+
+    /// Get a mutable reference to the instance's fields.
+    pub fn fields_mut(&mut self) -> &mut Vec<Value> {
+        &mut self.fields
     }
 }
 
 impl fmt::Display for Instance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("<instance {}>", self.class.name))
+        f.write_fmt(format_args!("<instance {}>", self.class.as_ref().name))
     }
 }
 
+#[derive(Debug)]
 pub struct InstanceFun {
     pub name: Box<str>,
     pub fun: fn(Rc<RefCell<Instance>>, Vec<Value>) -> Value,
@@ -150,6 +162,13 @@ impl InstanceFun {
     }
 }
 
+impl PartialEq for InstanceFun {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct BoundMethod {
     pub receiver: Rc<RefCell<Instance>>,
     pub function: Rc<InstanceFun>,
@@ -162,13 +181,13 @@ impl<'a, 'b> BoundMethod {
 }
 
 impl Callable for BoundMethod {
-    fn call(self: &mut Self, args: Vec<Value>) -> Value {
-        (self.function.fun)(self.receiver.clone(), args).into()
+    fn call(&self, args: Vec<Value>) -> Value {
+        (self.function.fun)(self.receiver.clone(), args)
     }
 }
 
 pub trait Callable {
-    fn call(self: &mut Self, args: Vec<Value>) -> Value;
+    fn call(&self, args: Vec<Value>) -> Value;
 }
 
 pub trait FromValue: Sized {
@@ -217,8 +236,8 @@ impl_into_value!(f64, Float);
 impl_into_value!(f32, Float, f64);
 impl_into_value!(bool, Bool);
 
-impl Into<Value> for () {
-    fn into(self) -> Value {
+impl From<()> for Value {
+    fn from(_: ())-> Value {
         Value::Nil
     }
 }
@@ -252,16 +271,14 @@ impl FromValue for Value {
 
 #[cfg(test)]
 pub mod test {
-    use std::rc::Rc;
+    use std::{mem, rc::Rc};
 
-    use crate::value::{FromValue, InstanceFun, ToValue};
-
-    use super::{BoundMethod, Callable, Class, Instance, Value};
+    use super::{BoundMethod, Callable, Class, FromValue, Instance, InstanceFun, ToValue, Value};
 
     #[test]
     fn test_bound_method() {
         let class = Class::new("Test");
-        let receiver = Class::instance(Rc::new(class));
+        let receiver = class.instance();
 
         let fun1 = InstanceFun::new("x", |this, _| {
             this.as_ref().borrow_mut().fields.push(Value::Integer(10));
@@ -290,7 +307,7 @@ pub mod test {
     #[test]
     fn test_bound_method_args() {
         let class = Class::new("Args");
-        let receiver = Class::instance(Rc::new(class));
+        let receiver = class.instance();
 
         let constructor = InstanceFun::new("constructor", |this, _| {
             this.as_ref().borrow_mut().fields.push(Value::Integer(1));
@@ -316,7 +333,7 @@ pub mod test {
 
     #[test]
     fn test_class() {
-        let mut class = Class::new("Io");
+        let class = Class::new("Io");
 
         class.add_method("to_string", |_, _| Value::String("__io__".into()));
 
@@ -329,10 +346,17 @@ pub mod test {
             Value::Nil
         });
 
-        let receiver = Class::instance(Rc::new(class));
+        let receiver = class.instance();
 
         let mut bound = Instance::bind(receiver, "print");
 
         BoundMethod::call(&mut bound, vec!["Hello, World!".to_value()]);
+    }
+
+    #[test]
+    #[allow(dead_code)]
+    fn test_value_size() {
+        //assert_eq!(16, mem::size_of::<Value>())
+        assert_eq!(32, mem::size_of::<Value>())
     }
 }

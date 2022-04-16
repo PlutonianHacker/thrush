@@ -1,6 +1,6 @@
-use std::rc::Rc;
+use std::{rc::Rc};
 
-use thrush::{Thrush, value::Class};
+use thrush::{value::{Class, Value}, Thrush};
 
 fn main() -> Result<(), String> {
     let mut thrush = Thrush::new();
@@ -19,9 +19,20 @@ fn main() -> Result<(), String> {
 
     let scope = thrush.globals();
 
-    assert_eq!(scope.get::<Rc<Class>>("Bird")?.as_ref(), &Class::new("Bird"));
+    assert_eq!(
+        scope.get::<Rc<Class>>("Bird")?,
+        Class::new("Bird")
+    );
 
-    thrush.exec("Bird()")?;
+    let class = scope.get::<Rc<Class>>("Bird")?;
+
+    class.add_method("sound", |_, _| {
+        println!("chirp, chirp, chrip!");
+
+        Value::Nil
+    });
+
+    thrush.exec("Bird().sound()")?;
 
     //println!("{thrush:#?}");
 

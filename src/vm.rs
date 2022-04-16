@@ -2,14 +2,13 @@ use std::rc::Rc;
 
 use crate::{
     chunk::Chunk,
-    hash::Hash,
     instruction::{InstanceValue, Instruction},
     scope::State,
-    value::{Value, Class},
+    value::{BoundMethod, Callable, Class, Instance, Value},
 };
 
 /// The VM's stack.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Stack {
     stack: Vec<Value>,
 }
@@ -37,11 +36,12 @@ impl Stack {
     }
 }
 
+/// A runtime error returned by the VM.
 #[derive(Debug)]
 pub struct VmError(pub String);
 
 /// The Thrush stack-based virtual machine.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Vm {
     /// The operand stack.
     stack: Stack,
@@ -69,6 +69,7 @@ impl Vm {
         self.ip = 0;
     }
 
+    /// Execute a [Chunk].
     pub fn execute(&mut self, chunk: Rc<Chunk>) -> Result<(), VmError> {
         self.chunk = chunk;
         self.run()
@@ -84,8 +85,15 @@ impl Vm {
         self.stack.push(value.into_value());
     }
 
-    fn op_get_prop(&mut self, _name: Hash) -> Result<(), VmError> {
-        let _instance = self.stack.pop()?;
+    fn op_get_prop(&mut self, index: usize) -> Result<(), VmError> {
+        let instance = self.stack.pop()?;
+
+        if let Value::Instance(instance) = instance {
+            let name = &*self.chunk.variables[index];
+            let bound = Instance::bind(instance, name);
+
+            self.stack.push(Value::Method(Rc::new(bound)));
+        }
 
         Ok(())
     }
@@ -94,35 +102,34 @@ impl Vm {
         match self.stack.pop()? {
             Value::Class(class) => {
                 let instance = Class::instance(class);
-
                 self.stack.push(Value::Instance(instance));
-
-                Ok(())
             }
-            value => Err(VmError(format!("'{value}' is not callable")))
+            Value::Method(bound) => {
+                let method = bound.as_ref();
+                let result = BoundMethod::call(method, Vec::new());
+
+                self.stack.push(result);
+            }
+            value => return Err(VmError(format!("'{value}' is not callable"))),
         }
+
+        Ok(())
     }
 
     pub fn run(&mut self) -> Result<(), VmError> {
         loop {
             let inst = *self.get_next_inst();
-            println!("{:?}", self.stack);
+
             match inst {
-                Instruction::Push { value } => {
-                    self.op_push(value);
-                }
+                Instruction::Push { value } => self.op_push(value),
                 Instruction::Pop => {
                     self.stack.pop()?;
                 }
-                Instruction::CallInstance { .. } => {}
                 Instruction::Call => self.op_call()?,
-                Instruction::GetProperty { name } => self.op_get_prop(name)?,
+                Instruction::GetProperty { index } => self.op_get_prop(index)?,
                 Instruction::GetGlobal { index } => {
                     let name = &*self.chunk.variables[index];
-
-                    let value = self.state.get::<Value>(name).map_err(|e| VmError(e))?;
-
-                    println!("{value}"); 
+                    let value = self.state.get::<Value>(name).map_err(VmError)?;
 
                     self.stack.push(value);
                 }

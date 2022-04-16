@@ -35,6 +35,20 @@ impl Thrush {
         &mut self.vm.state
     }
 
+    /// Run a Thrush script.
+    ///
+    /// # Examples 
+    ///
+    /// ```
+    /// use thrush::Thrush;
+    ///
+    /// let mut thrush = Thrush::new();
+    /// assert_eq!(thrush.exec("class Pie {}"), Ok(()));
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if there are any lexical or semanitic errors in the scipt.
     pub fn exec(&mut self, script: &str) -> Result<(), String> {
         self._exec(script)
     } 

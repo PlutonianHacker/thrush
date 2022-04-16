@@ -34,7 +34,9 @@ pub enum Expr {
     },
     /// An unary expression
     UnaryExpr { value: Box<Expr>, op: BinOp },
-    Call { callee: Box<Expr>, args: Vec<Expr> }
+    Call { callee: Box<Expr>, args: Vec<Expr> },
+    /// A dot expression. 
+    Dot { object: Box<Expr>, property: Box<Expr> },
 }
 
 impl Expr {
