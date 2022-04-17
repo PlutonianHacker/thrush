@@ -13,7 +13,7 @@ fn main() -> Result<(), String> {
 
     assert_eq!(scope.get::<i32>("x")?, 34);
     assert_eq!(scope.get::<String>("y")?, "Hello".to_string());
-    assert_eq!(scope.get::<bool>("z")?, true);
+    assert!(scope.get::<bool>("z")?);
 
     thrush.exec("class Bird {}")?;
 
@@ -27,14 +27,15 @@ fn main() -> Result<(), String> {
     let class = scope.get::<Rc<Class>>("Bird")?;
 
     class.add_method("sound", |_, _| {
-        println!("chirp, chirp, chrip!");
+        println!("Hello, World!");
 
         Value::Nil
     });
 
-    thrush.exec("Bird().sound()")?;
+    thrush.exec("var instance = Bird()")?;
+    thrush.exec("instance.sound()")?;
 
-    //println!("{thrush:#?}");
+    // println!("{thrush:#?}");
 
     Ok(())
 }

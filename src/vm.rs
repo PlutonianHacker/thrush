@@ -116,6 +116,15 @@ impl Vm {
         Ok(())
     }
 
+    fn op_class(&mut self, index: usize) -> Result<(), VmError> {
+        let name = &*self.chunk.variables[index];
+        let class = Class::new(name);
+
+        self.stack.push(Value::Class(class));
+
+        Ok(())
+    } 
+
     pub fn run(&mut self) -> Result<(), VmError> {
         loop {
             let inst = *self.get_next_inst();
@@ -124,8 +133,12 @@ impl Vm {
                 Instruction::Push { value } => self.op_push(value),
                 Instruction::Pop => {
                     self.stack.pop()?;
-                }
+                },
+                Instruction::Class { index } => self.op_class(index)?,
                 Instruction::Call => self.op_call()?,
+                Instruction::LoadNil => {
+                    self.stack.push(Value::Nil);
+                }
                 Instruction::GetProperty { index } => self.op_get_prop(index)?,
                 Instruction::GetGlobal { index } => {
                     let name = &*self.chunk.variables[index];
@@ -134,8 +147,19 @@ impl Vm {
                     self.stack.push(value);
                 }
                 Instruction::Halt => break,
+                Instruction::DefineGlobal { index } => self.define_global(index)?,
+                Instruction::SetGlobal { .. } => todo!(),
             };
         }
+
+        Ok(())
+    }
+
+    fn define_global(&mut self, index: usize) -> Result<(), VmError> {
+        let name = &*self.chunk.variables[index];
+        let value = self.stack.pop()?;
+
+        self.state.add(name, value);
 
         Ok(())
     }

@@ -10,10 +10,18 @@ pub enum Instruction {
     Push { value: InstanceValue },
     /// Pop a value off the stack.
     Pop,
+    /// Construct a new class.
+    Class { index: usize },
     /// Call the value on top of the stack.
     Call,
+    /// Load a `nil` value onto the stack.
+    LoadNil,
     /// Access a property from the instance on top of the stack.
     GetProperty { index: usize },
+    /// Define a new global.
+    DefineGlobal { index: usize },
+    /// Set a global's value to what's on top of the stack.
+    SetGlobal { index: usize },
     /// Load a global onto the stack.
     GetGlobal { index: usize },
     /// Halt the current VM.

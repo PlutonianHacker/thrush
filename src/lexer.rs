@@ -59,11 +59,11 @@ impl<'a> StringReader<'a> {
 }
 
 pub trait ToStringReader {
-    fn into_string_reader(&self) -> StringReader;
+    fn to_string_reader(&self) -> StringReader;
 }
 
 impl ToStringReader for &str {
-    fn into_string_reader(&self) -> StringReader {
+    fn to_string_reader(&self) -> StringReader {
         StringReader::new(self)
     }
 }
@@ -156,6 +156,7 @@ impl<'a> Lexer<'a> {
             Some("{") => self.make_token(TokenKind::LBrace),
             Some("}") => self.make_token(TokenKind::RBrace),
             Some(".") => self.make_token(TokenKind::Dot),
+            Some("=") => self.make_token(TokenKind::Assign),
             Some(c) => {
                 if is_numeric(c) {
                     self.number()

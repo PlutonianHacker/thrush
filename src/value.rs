@@ -1,8 +1,7 @@
-use core::fmt;
+use core::fmt::{self, Debug};
 use std::{
     cell::{Ref, RefCell, RefMut},
     collections::HashMap,
-    fmt::Debug,
     rc::Rc,
 };
 
@@ -233,6 +232,12 @@ impl_into_value!(usize, Integer, i64);
 impl_into_value!(f64, Float);
 impl_into_value!(f32, Float, f64);
 impl_into_value!(bool, Bool);
+
+impl ToValue for Value {
+    fn to_value(self) -> Value {
+        self
+    }
+}
 
 impl From<()> for Value {
     fn from(_: ()) -> Value {

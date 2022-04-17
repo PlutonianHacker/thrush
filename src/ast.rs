@@ -5,18 +5,16 @@ pub struct Ast {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum AstNode {
-    /// A statement.
-    Stmt(Stmt),
-    /// An expression
-    Expr(Expr),
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Stmt {
+    /// A class declaration.
     Class {
         name: String,
     },
+    VarDecl {
+        id: String,
+        init: Expr,
+    },
+    /// An expression.
     Expr(Expr),
 }
 

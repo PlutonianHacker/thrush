@@ -63,6 +63,7 @@ impl Parser {
         match &self.current.kind {
             TokenKind::Keyword(keyword) => match keyword {
                 Keyword::Class => self.class(),
+                Keyword::Var => self.var_decl(),
                 _ => todo!(),
             },
             _ => self.expr(),
@@ -83,6 +84,32 @@ impl Parser {
         self.consume();
 
         Ok(class)
+    }
+
+    fn var_decl(&mut self) -> Result<Stmt, String> {
+        // var ...
+        self.consume();
+        // var id ...
+        let id = self.identifier()?;
+
+        let init = if let TokenKind::Assign = self.current.kind {
+            // var id = ...
+            self.consume();
+            // var id = expr ...
+            self.expression(Precedence::None)?
+        } else {
+            Expr::Literal(Lit::Nil)
+        };
+
+        match &self.current.kind {
+            TokenKind::Newline => {
+                self.consume();
+            }
+            TokenKind::Eof | TokenKind::RBrace => {},
+            _ => panic!("Unexpected token"),
+        }
+
+        Ok(Stmt::VarDecl { id, init })
     }
 
     /// Parse a expression and a newline.

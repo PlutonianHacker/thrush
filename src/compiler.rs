@@ -10,23 +10,21 @@ pub struct Class {
 }
 
 impl Class {
-    fn new() -> Option<Class> {
+    fn _new() -> Option<Class> {
         Some(Self { fields: 0 })
     }
 }
 
 pub struct Compiler<'a> {
-    state: &'a mut State,
+    _state: &'a mut State,
     chunk: Chunk,
-    class: Option<Class>,
 }
 
 impl<'a> Compiler<'a> {
     pub fn new(state: &'a mut State) -> Self {
         Self {
-            state,
+            _state: state,
             chunk: Chunk::new(),
-            class: None,
         }
     }
 
@@ -42,6 +40,7 @@ impl<'a> Compiler<'a> {
         for node in ast.nodes {
             match &node {
                 Stmt::Class { name } => self.class(name),
+                Stmt::VarDecl { id, init } => self.var_declartion(id, init),
                 Stmt::Expr(expr) => self.expression(expr),
             }
         }
@@ -55,9 +54,21 @@ impl<'a> Compiler<'a> {
     }
 
     fn class(&mut self, name: &str) {
-        self.class = Class::new();
+        let index = self.chunk.add_variable(name);
 
-        self.state.add_class(name);
+        self.emit_inst(Instruction::Class { index });
+        self.emit_inst(Instruction::DefineGlobal { index });
+
+        //self.class = Class::new();
+
+        //self.state.add_class(name);
+    }
+
+    fn var_declartion(&mut self, id: &str, init: &Expr) {
+        self.expr(init);
+        
+        let index = self.chunk.add_variable(id);
+        self.emit_inst(Instruction::DefineGlobal { index });
     }
 
     fn expression(&mut self, expr: &Expr) {
@@ -126,7 +137,7 @@ impl<'a> Compiler<'a> {
             Lit::Integer(v) => self.integer(*v),
             Lit::Float(_) => todo!(),
             Lit::Char(_) => todo!(),
-            Lit::Nil => todo!(),
+            Lit::Nil => self.nil(),
             Lit::String(_) => todo!(),
         }
     }
@@ -138,6 +149,10 @@ impl<'a> Compiler<'a> {
     fn _float(&mut self) {}
 
     fn _string(&mut self) {}
+
+    fn nil(&mut self) {
+        self.emit_inst(Instruction::LoadNil);
+    }
 }
 
 #[cfg(test)]

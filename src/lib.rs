@@ -18,7 +18,7 @@ use compiler::Compiler;
 use scope::State;
 use vm::Vm;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Thrush {
     vm: Vm,
 }
@@ -70,11 +70,5 @@ impl Thrush {
     /// Get a mutable reference to the Thrush's vm.
     pub fn vm_mut(&mut self) -> &mut Vm {
         &mut self.vm
-    }
-}
-
-impl Default for Thrush {
-    fn default() -> Self {
-        Self::new()
     }
 }
